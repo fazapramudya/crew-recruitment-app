@@ -1,58 +1,66 @@
-name: Azure Static Web Apps CI/CD
+name: Azure Static Web Apps CI/CD # Nama workflow Anda
 
 on:
   push:
     branches:
-      - main
+      - main # Ganti dengan nama branch utama Anda (misalnya: master, main)
   pull_request:
     types: [opened, synchronize, reopened, closed]
     branches:
-      - main
+      - main # Ganti dengan nama branch utama Anda
 
 jobs:
   build_and_deploy_job:
+    # Kondisi untuk menjalankan job: hanya pada push ke branch utama, atau pada pull request yang dibuka/disinkronkan/dibuka kembali (bukan yang ditutup)
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
-    runs-on: ubuntu-latest
-    name: Build and Deploy Job
-    permissions:
-       id-token: write
-       contents: read
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: true
-          lfs: false
-      - name: Install OIDC Client from Core Package
-        run: npm install @actions/core@1.6.0 @actions/http-client
-      - name: Get Id Token
-        uses: actions/github-script@v6
-        id: idtoken
-        with:
-           script: |
-               const coredemo = require('@actions/core')
-               return await coredemo.getIDToken()
-           result-encoding: string
-      - name: Build And Deploy
-        id: builddeploy
-        uses: Azure/static-web-apps-deploy@v1
-        with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_HAPPY_FOREST_0CAE6AA00 }}
-          action: "upload"
-          ###### Repository/Build Configurations - These values can be configured to match your app requirements. ######
-          # For more information regarding Static Web App workflow configurations, please visit: https://aka.ms/swaworkflowconfig
-          app_location: "/" # App source code path
-          api_location: "" # Api source code path - optional
-          output_location: "." # Built app content directory - optional
-          github_id_token: ${{ steps.idtoken.outputs.result }}
-          ###### End of Repository/Build Configurations ######
+    runs-on: ubuntu-latest # Runner yang digunakan untuk menjalankan job
 
-  close_pull_request_job:
-    if: github.event_name == 'pull_request' && github.event.action == 'closed'
-    runs-on: ubuntu-latest
-    name: Close Pull Request Job
+    name: Build and Deploy Job # Nama job
     steps:
-      - name: Close Pull Request
-        id: closepullrequest
-        uses: Azure/static-web-apps-deploy@v1
+      - uses: actions/checkout@v3 # Checkout kode dari repositori
         with:
-          action: "close"
+          submodules: true # Mendukung submodule Git jika ada
+          lfs: false       # Mendukung Git LFS jika ada
+
+      - name: Build And Deploy # Nama langkah build dan deploy
+        id: builddeploy # ID untuk langkah ini, bisa digunakan untuk mereferensikan outputnya
+        uses: azure/static-web-apps-deploy@v1 # Menggunakan action deployment Azure Static Web Apps
+        with:
+          # Token API untuk otentikasi ke Azure Static Web Apps.
+          # Ini adalah secret yang dibuat secara otomatis oleh Azure saat Anda mengatur SWA.
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_YOUR_APP_ID }} 
+          # Ganti YOUR_APP_ID dengan ID unik aplikasi Static Web Apps Anda di Azure.
+          # Contoh: AZURE_STATIC_WEB_APPS_API_TOKEN_AMBITIOUS_BAY_0A1B2C3
+
+          # Token repositori GitHub, digunakan untuk integrasi GitHub (misalnya, komentar PR)
+          repo_token: ${{ secrets.GITHUB_TOKEN }} 
+          
+          # Aksi yang akan dilakukan oleh action (dalam kasus ini, mengunggah file)
+          action: "upload"
+          
+          # Lokasi folder aplikasi frontend Anda relatif terhadap root repositori.
+          # Karena index.html dan folder js/ Anda ada di root, gunakan "/".
+          app_location: "/" 
+          
+          # Lokasi folder API PHP Anda relatif terhadap root repositori.
+          api_location: "/api" 
+          
+          # Lokasi output build aplikasi frontend Anda.
+          # Karena ini aplikasi HTML/JS statis tanpa proses build yang menghasilkan subfolder,
+          # outputnya dianggap berada di root aplikasi.
+          output_location: "/" 
+          
+          # PENTING: Ini memberi tahu Azure untuk TIDAK mencoba menjalankan perintah build untuk aplikasi frontend.
+          # Ini diperlukan karena aplikasi Anda adalah HTML/JS sederhana tanpa package.json atau skrip build.
+          skip_app_build: true 
+          
+          # Opsi tambahan (opsional, uncomment jika diperlukan):
+          # api_build_command: '' # Jika Anda memiliki perintah build khusus untuk API PHP Anda
+          # skip_api_build: true # Jika Anda tidak ingin Oryx melakukan build apapun pada API PHP (misalnya, jika Anda sudah mengelola dependensi PHP secara manual)
+          # config_file_location: '' # Jika file konfigurasi SWA Anda berada di lokasi non-standar
+          # app_artifact_location: '' # Jika artefak aplikasi Anda berada di lokasi non-standar setelah build
+          # routes_location: '' # Jika file routes.json Anda berada di lokasi non-standar
+          # production_branch: 'main' # Jika Anda ingin menentukan branch produksi secara eksplisit
+          # deployment_environment: 'production' # Lingkungan deployment (misalnya: production, staging)
+          # is_static_export: false # Set ke true jika Anda menggunakan Next.js/Nuxt.js dengan static export
+
