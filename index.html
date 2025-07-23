@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Crew Recruitment Management System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <!-- Chosen Palette: Serene Blue & Warm Neutrals -->
+    <!-- Application Structure Plan: This application is designed as a multi-view, task-oriented dashboard (Dashboard, Crew Requirements, Candidate Database, Approval Process). This structure was chosen because it directly reflects the workflow and user roles described in the source report, separating key tasks into clear sections to reduce confusion and improve efficiency. Users can easily switch between tasks, from viewing the big picture on the dashboard, managing specific requests, browsing candidates, to focusing on approval tasks. This flow is intuitive and follows the logical recruitment process from start to finish. -->
+    <!-- Visualization & Content Choices: 
+        - Report: Recruitment Status Summary -> Goal: Inform -> Viz: Statistic Cards & Doughnut Chart (Chart.js) -> Interaction: Hover on chart for details. -> Justification: Provides a quick and visual overview of system status, as requested for the dashboard feature.
+        - Report: Crew Requirements & Candidate Management -> Goal: Organize & Manage -> Viz: Interactive Tables (HTML/JS) with Modals -> Interaction: Filter, search, click for details/add new data. -> Justification: The most effective way to display and manage structured data lists, allowing CRUD operations without leaving the main page.
+        - Report: Multi-stage Approval Process -> Goal: Process/Workflow -> Viz: Kanban-style Lists (HTML/Tailwind) & Approval Modals -> Interaction: Click candidate to view details, then approve/reject with reason. -> Justification: Focuses approver roles on their core tasks in a clear and directed interface.
+        - Report: System Workflow -> Goal: Explain -> Viz: Process Flow Diagram (HTML/Tailwind) -> Interaction: Static, for information only. -> Justification: Clarifies complex multi-step processes for all users, which is central to the business logic.
+    -->
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: #f8f9fa; /* Warm Neutral */
+      }
+      .nav-link {
+        transition: all 0.3s ease;
+        border-bottom: 2px solid transparent;
+      }
+      .nav-link.active,
+      .nav-link:hover {
+        border-bottom-color: #3b82f6; /* Serene Blue */
+        color: #3b82f6;
+      }
+      .modal-backdrop {
+        transition: opacity 0.3s ease-in-out;
+      }
+      .modal-content {
+        transition: transform 0.3s ease-in-out;
+      }
+      .k-card {
+        border-left: 4px solid;
+        transition: all 0.2s ease-in-out;
+      }
+      .k-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1),
+          0 4px 6px -4px rgb(0 0 0 / 0.1);
+      }
+      .status-badge {
+        font-size: 0.75rem;
+        font-weight: 600;
+        padding: 0.25rem 0.6rem;
+        border-radius: 9999px;
+        text-transform: uppercase;
+      }
+      .status-blue {
+        background-color: #eff6ff;
+        color: #3b82f6;
+      }
+      .status-yellow {
+        background-color: #fefce8;
+        color: #ca8a04;
+      }
+      .status-red {
+        background-color: #fef2f2;
+        color: #ef4444;
+      }
+      .status-green {
+        background-color: #f0fdf4;
+        color: #22c55e;
+      }
+      .status-gray {
+        background-color: #f3f4f6;
+        color: #6b7280;
+      }
+      .status-purple {
+        background-color: #f5f3ff;
+        color: #8b5cf6;
+      }
+
+      .chart-container {
+        position: relative;
+        width: 100%;
+        max-width: 400px;
+        margin-left: auto;
+        margin-right: auto;
+        height: 320px;
+        max-height: 350px;
+      }
+      @media (min-width: 768px) {
+        .chart-container {
+          height: 350px;
+        }
+      }
+      .sortable-header {
+        cursor: pointer;
+        position: relative;
+        padding-right: 20px; /* Space for arrow */
+      }
+      .sortable-header::after {
+        content: "";
+        position: absolute;
+        right: 5px;
+        top: 50%;
+        transform: translateY(-50%);
+        border: 4px solid transparent;
+      }
+      .sortable-header.asc::after {
+        border-bottom-color: #333;
+        margin-top: -6px;
+      }
+      .sortable-header.desc::after {
+        border-top-color: #333;
+        margin-top: 2px;
+      }
+    </style>
+  </head>
+  <body class="text-gray-800">
+    <!-- Login Section -->
+    <div
+      id="login-section"
+      class="min-h-screen flex items-center justify-center bg-gray-100"
+    >
+      <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-sm">
+        <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">
+          Login to Crew Recruitment System
+        </h2>
+        <form id="login-form" class="space-y-4">
+          <div>
+            <label
+              for="username"
+              class="block text-sm font-medium text-gray-700"
+              >Username</label
+            >
+            <input
+              type="text"
+              id="username"
+              name="username"
+              class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              required
+            />
+          </div>
+          <div>
+            <label
+              for="password"
+              class="block text-sm font-medium text-gray-700"
+              >Password</label
+            >
+            <input
+              type="password"
+              id="password"
+              name="password"
+              class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              required
+            />
+          </div>
+          <button
+            type="submit"
+            class="w-full bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 transition"
+          >
+            Login
+          </button>
+          <p id="login-message" class="text-red-500 text-sm text-center hidden">
+            Invalid username or password.
+          </p>
+        </form>
+      </div>
+    </div>
+
+    <!-- Main Application Section -->
+    <div id="app" class="min-h-screen hidden">
+      <header class="bg-white shadow-sm sticky top-0 z-20">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div class="flex items-center justify-between h-16">
+            <div class="flex items-center space-x-4">
+              <svg
+                class="h-8 w-8 text-blue-600"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 12h6m-1 8h.01"
+                />
+              </svg>
+              <h1 class="text-xl font-bold text-gray-800">
+                Crew Recruitment System
+              </h1>
+            </div>
+            <nav class="hidden md:flex space-x-6 items-center">
+              <a
+                href="#dashboard"
+                class="nav-link active font-semibold text-gray-600 py-2"
+                data-section="dashboard"
+                >Dashboard</a
+              >
+              <a
+                href="#requirements"
+                class="nav-link font-semibold text-gray-600 py-2"
+                data-section="requirements"
+                >Crew Requirements</a
+              >
+              <a
+                href="#candidates"
+                class="nav-link font-semibold text-gray-600 py-2"
+                data-section="candidates"
+                >Candidate Database</a
+              >
+              <a
+                href="#approval"
+                class="nav-link font-semibold text-gray-600 py-2"
+                data-section="approval"
+                >Approval Process</a
+              >
+              <button
+                id="logout-button"
+                class="ml-4 bg-red-500 text-white font-semibold py-1.5 px-3 rounded-lg hover:bg-red-600 transition text-sm"
+              >
+                Logout
+              </button>
+            </nav>
+          </div>
+        </div>
+      </header>
+
+      <main class="container mx-auto p-4 sm:p-6 lg:p-8">
+        <section id="dashboard-section" class="app-section">
+          <div class="mb-6">
+            <h2 class="text-2xl font-bold text-gray-900">Dashboard</h2>
+            <p class="text-gray-600 mt-1">
+              Summary of recruitment activities in your company.
+            </p>
+          </div>
+
+          <div
+            class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
+          >
+            <div
+              class="bg-white p-6 rounded-lg shadow-md flex items-center space-x-4"
+            >
+              <div class="bg-blue-100 p-3 rounded-full">
+                <svg
+                  class="h-6 w-6 text-blue-600"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                  ></path>
+                </svg>
+              </div>
+              <div>
+                <p class="text-sm font-medium text-gray-500">
+                  Active Requirements
+                </p>
+                <p id="stat-active-requirements" class="text-2xl font-bold">
+                  0
+                </p>
+              </div>
+            </div>
+            <div
+              class="bg-white p-6 rounded-lg shadow-md flex items-center space-x-4"
+            >
+              <div class="bg-yellow-100 p-3 rounded-full">
+                <svg
+                  class="h-6 w-6 text-yellow-600"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                  ></path>
+                </svg>
+              </div>
+              <div>
+                <p class="text-sm font-medium text-gray-500">
+                  Pending Approval
+                </p>
+                <p id="stat-pending-approval" class="text-2xl font-bold">0</p>
+              </div>
+            </div>
+            <div
+              class="bg-green-100 p-3 rounded-lg shadow-md flex items-center space-x-4"
+            >
+              <div class="bg-green-100 p-3 rounded-full">
+                <svg
+                  class="h-6 w-6 text-green-600"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  ></path>
+                </svg>
+              </div>
+              <div>
+                <p class="text-sm font-medium text-gray-500">
+                  Ready for Client Submission
+                </p>
+                <p id="stat-ready-for-submission" class="text-2xl font-bold">
+                  0
+                </p>
+              </div>
+            </div>
+            <div
+              class="bg-red-100 p-3 rounded-lg shadow-md flex items-center space-x-4"
+            >
+              <div class="bg-red-100 p-3 rounded-full">
+                <svg
+                  class="h-6 w-6 text-red-600"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"
+                  ></path>
+                </svg>
+              </div>
+              <div>
+                <p class="text-sm font-medium text-gray-500">Rejected</p>
+                <p id="stat-rejected" class="text-2xl font-bold">0</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div class="bg-white p-6 rounded-lg shadow-md">
+              <h3 class="text-lg font-semibold mb-4">Candidate Status</h3>
+              <div class="chart-container">
+                <canvas id="status-chart"></canvas>
+              </div>
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow-md">
+              <h3 class="text-lg font-semibold mb-4">Recruitment Workflow</h3>
+              <p class="text-gray-600 mb-4">
+                Here is the standard workflow from client request to candidate
+                placement.
+              </p>
+              <div class="space-y-4">
+                <div class="flex items-start">
+                  <div
+                    class="flex-shrink-0 h-8 w-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold"
+                  >
+                    1
+                  </div>
+                  <div class="ml-4">
+                    <h4 class="font-semibold">Request Received</h4>
+                    <p class="text-sm text-gray-600">
+                      Crew Manager enters crew requirements from clients.
+                    </p>
+                  </div>
+                </div>
+                <div class="flex items-start">
+                  <div
+                    class="flex-shrink-0 h-8 w-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold"
+                  >
+                    2
+                  </div>
+                  <div class="ml-4">
+                    <h4 class="font-semibold">Candidate Selection</h4>
+                    <p class="text-sm text-gray-600">
+                      Selection team searches & enters candidates, then submits
+                      for approval.
+                    </p>
+                  </div>
+                </div>
+                <div class="flex items-start">
+                  <div
+                    class="flex-shrink-0 h-8 w-8 rounded-full bg-yellow-500 text-white flex items-center justify-center font-bold"
+                  >
+                    3
+                  </div>
+                  <div class="ml-4">
+                    <h4 class="font-semibold">Approval Stage 1</h4>
+                    <p class="text-sm text-gray-600">
+                      Lead of Selection reviews. If rejected, returns to stage
+                      2.
+                    </p>
+                  </div>
+                </div>
+                <div class="flex items-start">
+                  <div
+                    class="flex-shrink-0 h-8 w-8 rounded-full bg-yellow-500 text-white flex items-center justify-center font-bold"
+                  >
+                    4
+                  </div>
+                  <div class="ml-4">
+                    <h4 class="font-semibold">Approval Stage 2</h4>
+                    <p class="text-sm text-gray-600">
+                      Crew Manager performs final review. If rejected, returns
+                      to stage 2.
+                    </p>
+                  </div>
+                </div>
+                <div class="flex items-start">
+                  <div
+                    class="flex-shrink-0 h-8 w-8 rounded-full bg-green-500 text-white flex items-center justify-center font-bold"
+                  >
+                    5
+                  </div>
+                  <div class="ml-4">
+                    <h4 class="font-semibold">Ready for Submission</h4>
+                    <p class="text-sm text-gray-600">
+                      Approved candidates are ready to be proposed to clients.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="requirements-section" class="app-section hidden">
+          <div class="flex justify-between items-center mb-6">
+            <div>
+              <h2 class="text-2xl font-bold text-gray-900">
+                Crew Requirements Management
+              </h2>
+              <p class="text-gray-600 mt-1">
+                List of all active crew requests from clients.
+              </p>
+            </div>
+            <button
+              id="btn-add-requirement"
+              class="bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 transition"
+            >
+              Add Requirement
+            </button>
+          </div>
+          <div class="bg-white p-6 rounded-lg shadow-md">
+            <div class="mb-4 flex flex-wrap gap-4 items-center">
+              <div>
+                <label
+                  for="filter-requirement-status"
+                  class="block text-sm font-medium text-gray-700"
+                  >Filter by Status:</label
+                >
+                <select
+                  id="filter-requirement-status"
+                  class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"
+                >
+                  <option value="All">All</option>
+                  <option value="Open">Open</option>
+                  <option value="Filled">Filled</option>
+                </select>
+              </div>
+              <div>
+                <label
+                  for="filter-requirement-position"
+                  class="block text-sm font-medium text-gray-700"
+                  >Filter by Position:</label
+                >
+                <select
+                  id="filter-requirement-position"
+                  class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"
+                >
+                  <option value="All">All</option>
+                  <!-- Options will be dynamically loaded -->
+                </select>
+              </div>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm text-left text-gray-500">
+                <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                  <tr>
+                    <th
+                      scope="col"
+                      class="px-6 py-3 sortable-header"
+                      data-sort-key="client"
+                    >
+                      Client
+                    </th>
+                    <th
+                      scope="col"
+                      class="px-6 py-3 sortable-header"
+                      data-sort-key="position"
+                    >
+                      Position
+                    </th>
+                    <th
+                      scope="col"
+                      class="px-6 py-3 sortable-header"
+                      data-sort-key="quantityRequired"
+                    >
+                      Required Quantity
+                    </th>
+                    <th
+                      scope="col"
+                      class="px-6 py-3 sortable-header"
+                      data-sort-key="quantityFilled"
+                    >
+                      Filled Quantity
+                    </th>
+                    <th
+                      scope="col"
+                      class="px-6 py-3 sortable-header"
+                      data-sort-key="dateNeeded"
+                    >
+                      Date Needed
+                    </th>
+                    <th
+                      scope="col"
+                      class="px-6 py-3 sortable-header"
+                      data-sort-key="status"
+                    >
+                      Status
+                    </th>
+                    <th scope="col" class="px-6 py-3 text-center">Action</th>
+                    <th scope="col" class="px-6 py-3 text-center">Delete</th>
+                  </tr>
+                </thead>
+                <tbody id="requirements-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section id="candidates-section" class="app-section hidden">
+          <div class="flex justify-between items-center mb-6">
+            <div>
+              <h2 class="text-2xl font-bold text-gray-900">
+                Candidate Database
+              </h2>
+              <p class="text-gray-600 mt-1">
+                List of all candidates in the system.
+              </p>
+            </div>
+            <button
+              id="btn-add-candidate"
+              class="bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 transition"
+            >
+              Add Candidate
+            </button>
+          </div>
+          <div class="bg-white p-6 rounded-lg shadow-md">
+            <div class="mb-4 flex flex-wrap gap-4 items-center">
+              <input
+                type="text"
+                id="filter-candidate-text"
+                class="w-full md:w-1/3 p-2 border border-gray-300 rounded-lg"
+                placeholder="Search candidates by name or position..."
+              />
+              <div>
+                <label
+                  for="filter-candidate-status"
+                  class="block text-sm font-medium text-gray-700"
+                  >Filter by Status:</label
+                >
+                <select
+                  id="filter-candidate-status"
+                  class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"
+                >
+                  <option value="All">All</option>
+                  <!-- Options will be dynamically loaded -->
+                </select>
+              </div>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm text-left text-gray-500">
+                <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                  <tr>
+                    <th
+                      scope="col"
+                      class="px-6 py-3 sortable-header"
+                      data-sort-key="name"
+                    >
+                      Candidate Name
+                    </th>
+                    <th
+                      scope="col"
+                      class="px-6 py-3 sortable-header"
+                      data-sort-key="position"
+                    >
+                      Position Applied
+                    </th>
+                    <th
+                      scope="col"
+                      class="px-6 py-3 sortable-header"
+                      data-sort-key="experience"
+                    >
+                      Experience
+                    </th>
+                    <th
+                      scope="col"
+                      class="px-6 py-3 sortable-header"
+                      data-sort-key="status"
+                    >
+                      Status
+                    </th>
+                    <th
+                      scope="col"
+                      class="px-6 py-3 sortable-header"
+                      data-sort-key="linkedRequirement"
+                    >
+                      Linked Requirement
+                    </th>
+                    <th scope="col" class="px-6 py-3">Action</th>
+                    <th scope="col" class="px-6 py-3 text-center">Delete</th>
+                  </tr>
+                </thead>
+                <tbody id="candidates-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section id="approval-section" class="app-section hidden">
+          <div class="mb-6">
+            <h2 class="text-2xl font-bold text-gray-900">
+              Candidate Approval Process
+            </h2>
+            <p class="text-gray-600 mt-1">
+              Review and approve candidates submitted for placement.
+            </p>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div>
+              <h3
+                class="text-lg font-semibold mb-4 text-gray-800 border-b pb-2"
+              >
+                Pending Lead of Selection Approval
+              </h3>
+              <div id="approval-lead-list" class="space-y-4">
+                <p class="text-gray-500">No candidates awaiting approval.</p>
+              </div>
+            </div>
+            <div>
+              <h3
+                class="text-lg font-semibold mb-4 text-gray-800 border-b pb-2"
+              >
+                Pending Crew Manager Approval
+              </h3>
+              <div id="approval-manager-list" class="space-y-4">
+                <p class="text-gray-500">No candidates awaiting approval.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- Modal Backdrop and Modals -->
+    <div
+      id="modal-backdrop"
+      class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300"
+    >
+      <!-- Modal Add Requirement -->
+      <div
+        id="modal-add-requirement"
+        class="bg-white p-8 rounded-lg shadow-xl w-full max-w-md modal-content transform scale-95 transition-transform duration-300 hidden"
+      >
+        <h3 class="text-xl font-bold mb-6 text-gray-800">
+          Add New Crew Requirement
+        </h3>
+        <form id="form-add-requirement" class="space-y-4">
+          <div>
+            <label
+              for="requirement-client"
+              class="block text-sm font-medium text-gray-700"
+              >Client Name</label
+            >
+            <input
+              type="text"
+              id="requirement-client"
+              name="client"
+              class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              required
+            />
+          </div>
+          <div>
+            <label
+              for="requirement-position"
+              class="block text-sm font-medium text-gray-700"
+              >Required Position</label
+            >
+            <input
+              type="text"
+              id="requirement-position"
+              name="position"
+              class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              required
+            />
+          </div>
+          <div>
+            <label
+              for="requirement-quantity-required"
+              class="block text-sm font-medium text-gray-700"
+              >Quantity Required</label
+            >
+            <input
+              type="number"
+              id="requirement-quantity-required"
+              name="quantityRequired"
+              min="1"
+              class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              required
+            />
+          </div>
+          <div>
+            <label
+              for="requirement-date-needed"
+              class="block text-sm font-medium text-gray-700"
+              >Date Needed</label
+            >
+            <input
+              type="date"
+              id="requirement-date-needed"
+              name="dateNeeded"
+              class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              required
+            />
+          </div>
+          <div class="flex justify-end space-x-3">
+            <button
+              type="button"
+              id="btn-cancel-requirement"
+              class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition"
+            >
+              Save Requirement
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Modal Add Candidate -->
+      <div
+        id="modal-add-candidate"
+        class="bg-white p-8 rounded-lg shadow-xl w-full max-w-md modal-content transform scale-95 transition-transform duration-300 hidden"
+      >
+        <h3 class="text-xl font-bold mb-6 text-gray-800">Add New Candidate</h3>
+        <form id="form-add-candidate" class="space-y-4">
+          <div>
+            <label
+              for="candidate-name"
+              class="block text-sm font-medium text-gray-700"
+              >Candidate Name</label
+            >
+            <input
+              type="text"
+              id="candidate-name"
+              name="name"
+              class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              required
+            />
+          </div>
+          <div>
+            <label
+              for="candidate-position"
+              class="block text-sm font-medium text-gray-700"
+              >Position Applied</label
+            >
+            <input
+              type="text"
+              id="candidate-position"
+              name="position"
+              class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              required
+            />
+          </div>
+          <div>
+            <label
+              for="candidate-experience"
+              class="block text-sm font-medium text-gray-700"
+              >Experience</label
+            >
+            <input
+              type="text"
+              id="candidate-experience"
+              name="experience"
+              placeholder="Example: 5 years"
+              class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              required
+            />
+          </div>
+          <div>
+            <label
+              for="candidate-requirement"
+              class="block text-sm font-medium text-gray-700"
+              >Related Requirement (Optional)</label
+            >
+            <select
+              id="candidate-requirement"
+              name="requirementId"
+              class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">-- Select Requirement --</option>
+            </select>
+          </div>
+          <div class="flex justify-end space-x-3">
+            <button
+              type="button"
+              id="btn-cancel-candidate"
+              class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition"
+            >
+              Save Candidate
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Modal View Requirement Candidates -->
+      <div
+        id="modal-view-requirement-candidates"
+        class="bg-white p-8 rounded-lg shadow-xl w-full max-w-2xl modal-content transform scale-95 transition-transform duration-300 hidden"
+      >
+        <h3 class="text-xl font-bold mb-6 text-gray-800">
+          Candidates for
+          <span id="requirement-modal-title-position"></span> (<span
+            id="requirement-modal-title-client"
+          ></span
+          >)
+        </h3>
+        <div class="overflow-x-auto mb-4">
+          <table class="w-full text-sm text-left text-gray-500">
+            <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+              <tr>
+                <th scope="col" class="px-6 py-3">Candidate Name</th>
+                <th scope="col" class="px-6 py-3">Position Applied</th>
+                <th scope="col" class="px-6 py-3">Status</th>
+              </tr>
+            </thead>
+            <tbody id="requirement-candidates-table-body">
+              <tr>
+                <td colspan="3" class="px-6 py-4 text-center text-gray-500">
+                  No candidates linked to this requirement.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="flex justify-end">
+          <button
+            type="button"
+            id="btn-close-requirement-candidates-modal"
+            class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Import main JavaScript file as a module -->
+    <script type="module" src="js/main.js"></script>
+  </body>
+</html>
